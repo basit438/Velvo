@@ -2,6 +2,23 @@ import { ansyncHandler } from "../utils/asyncHandler.js";
 import {User} from "../models/user.model.js";
 import{uploadOnCloudinary} from "../utils/cloudinary.js";
 
+
+const generateAccessAndRefreshTokens = (UserId) => {
+    
+    try {
+     const user = await User.findById(UserId);
+
+     const accessToken = user.generateAccessToken();
+     const refreshToken = user.generateRefreshToken();
+     user.refreshToken = refreshToken;
+     await user.save({validateBeforeSave: false});
+
+     return {accessToken, refreshToken};
+    
+    } catch (error) {
+        throw error;
+    }
+}
 const registerUser = ansyncHandler(async (req, res) => {
 
 //    get details from the user 
@@ -98,4 +115,68 @@ res.status(201).json({
 })
 });
 
-export { registerUser };
+
+const loginUser = ansyncHandler(async (req, res) => {
+
+//    get details from the user through req.body
+
+const {email ,username, password} = req.body;
+
+if(!email && !username){
+    return res.status(400).json({
+        success: false,
+        message: "Please enter email or username"
+    })
+    const existingUser =await User.findOne({
+        $or: [
+            {username},
+            {email}
+        ]
+    })
+
+    if(!existingUser){
+        return res.status(400).json({
+            success: false,
+            message: "User not found"
+        })
+    }
+const isPasswordValid = await existingUser.isPasswordCorrect(password);
+
+if(!isPasswordValid){
+    return res.status(400).json({
+        success: false,
+        message: "invalid username or password"
+    })
+}
+
+  const {accessToken, refreshToken} = await generateAccessAndRefreshTokens(existingUser._id);
+
+ const loggedInUser = await User.findById(existingUser._id).select("-password -refreshToken");
+
+ const options = {
+    httpOnly: true,
+    secure: true,
+ }
+
+ return res.
+ status(200).
+ cookie("accessToken", accessToken)
+ .cookie("refreshToken", refreshToken, options)
+ .json({
+    success: true,
+    message: "User logged in successfully",
+    data: loggedInUser, accessToken, refreshToken
+ })
+ })
+ 
+//  const logoutUser = ansyncHandler(async (req, res) => {
+//     res.clearCookie("accessToken");
+//     res.clearCookie("refreshToken");
+//     res.status(200).json({
+//         success: true,
+//         message: "User logged out successfully"
+//     })
+//  })
+
+export { registerUser , loginUser
+ };
