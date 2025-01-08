@@ -167,16 +167,38 @@ if(!isPasswordValid){
     message: "User logged in successfully",
     data: loggedInUser, accessToken, refreshToken
  })
- })
- 
-//  const logoutUser = ansyncHandler(async (req, res) => {
-//     res.clearCookie("accessToken");
-//     res.clearCookie("refreshToken");
-//     res.status(200).json({
-//         success: true,
-//         message: "User logged out successfully"
-//     })
-//  })
 
-export { registerUser , loginUser
+
+}); 
+
+
+const logoutUser = ansyncHandler(async (req, res) => {
+   await User.findOneAndUpdate({
+        _id: req.user._id,
+        {
+            $set: {
+                refreshToken: undefined
+            }
+        },
+        {
+            new: true
+        }
+    })
+    const options = {
+        httpOnly: true,
+        secure: true
+    }
+
+    return res
+    .status(200)
+    .clearCookie("accessToken", options)
+    .clearCookie("refreshToken", options)
+    .json({
+        success: true,
+        message: "User logged out successfully"
+    })
+
+});
+
+export { registerUser , loginUser , logoutUser
  };
