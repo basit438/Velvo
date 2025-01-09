@@ -3,7 +3,9 @@ import {User} from "../models/user.model.js";
 import{uploadOnCloudinary} from "../utils/cloudinary.js";
 
 
-const generateAccessAndRefreshTokens = (UserId) => {
+// function to generate access and refresh token
+
+const generateAccessAndRefreshTokens = async(UserId) => {
     
     try {
      const user = await User.findById(UserId);
@@ -16,9 +18,18 @@ const generateAccessAndRefreshTokens = (UserId) => {
      return {accessToken, refreshToken};
     
     } catch (error) {
-        throw error;
+        res.status(500)
+        .json({
+            success: false,
+            message: "Something went wrong while generating tokens"
+        })
     }
 }
+
+
+// function to register a user
+
+
 const registerUser = ansyncHandler(async (req, res) => {
 
 //    get details from the user 
@@ -116,89 +127,106 @@ res.status(201).json({
 });
 
 
-const loginUser = ansyncHandler(async (req, res) => {
 
-//    get details from the user through req.body
+// function to login a user
 
-const {email ,username, password} = req.body;
+const loginUser = ansyncHandler(async(req, res) =>{
 
-if(!email && !username){
-    return res.status(400).json({
-        success: false,
-        message: "Please enter email or username"
-    })
-    const existingUser =await User.findOne({
+    //get details from the request body
+
+    const {email , password , username} = req.body;
+
+    // check if email or username is provided
+    if(!(username|| email)){
+        return res.status(400)
+        .json({
+            success: false,
+            message: "Please enter email or username"
+        })
+    }
+
+
+    // check if user exists
+
+    const user = await User.findOne({
         $or: [
-            {username},
-            {email}
+            {email},
+            {username}
         ]
     })
 
-    if(!existingUser){
-        return res.status(400).json({
+
+    //if the user does not exist then return error
+
+    if(!user){
+        return res.status(400)
+        .json({
             success: false,
             message: "User not found"
         })
     }
-const isPasswordValid = await existingUser.isPasswordCorrect(password);
-
-if(!isPasswordValid){
-    return res.status(400).json({
-        success: false,
-        message: "invalid username or password"
-    })
-}
-
-  const {accessToken, refreshToken} = await generateAccessAndRefreshTokens(existingUser._id);
-
- const loggedInUser = await User.findById(existingUser._id).select("-password -refreshToken");
-
- const options = {
-    httpOnly: true,
-    secure: true,
- }
-
- return res.
- status(200).
- cookie("accessToken", accessToken)
- .cookie("refreshToken", refreshToken, options)
- .json({
-    success: true,
-    message: "User logged in successfully",
-    data: loggedInUser, accessToken, refreshToken
- })
 
 
-}); 
+    // check if password is correct
 
+    const isPasswordValid = await user.isPasswordCorrect(password);
 
-const logoutUser = ansyncHandler(async (req, res) => {
-   await User.findOneAndUpdate({
-        _id: req.user._id,
-        {
-            $set: {
-                refreshToken: undefined
-            }
-        },
-        {
-            new: true
-        }
-    })
-    const options = {
-        httpOnly: true,
-        secure: true
+    //if the password is not correct then return error
+
+    if (!isPasswordValid){
+        return res.status(400)
+        .json({
+            success: false,
+            message: "Incorrect user credentials"
+        })
     }
 
-    return res
-    .status(200)
-    .clearCookie("accessToken", options)
-    .clearCookie("refreshToken", options)
+
+    // generate access and refresh tokens
+
+    const {accessToken, refreshToken} = await generateAccessAndRefreshTokens(user._id);
+
+    const loggedInUser = await User.findById(user._id)
+    .select("-password -refreshToken");
+
+    //send token cookie and resonse to the client
+
+    const options ={
+        httpOnly : true,
+        secure : true
+    }
+
+    return res.status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
     .json({
         success: true,
-        message: "User logged out successfully"
+        message: "User logged in successfully",
+        data: loggedInUser , accessToken , refreshToken
     })
-
 });
 
-export { registerUser , loginUser , logoutUser
+
+// function to logout a user
+
+const logoutUser = ansyncHandler(async(req, res) =>{
+
+})
+
+
+
+
+
+
+
+
+
+
+
+
+
+// export functions
+
+export { registerUser,
+    loginUser
  };
