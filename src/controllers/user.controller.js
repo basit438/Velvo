@@ -211,6 +211,30 @@ const loginUser = ansyncHandler(async(req, res) =>{
 
 const logoutUser = ansyncHandler(async(req, res) =>{
 
+    await User.findOneAndUpdate(
+        req.user._id,
+        {
+            $set :{
+                refreshToken : undefined
+            }
+        },
+        {
+            new: true
+        }
+    )
+
+    const options = {
+        httpOnly : true,
+        secure : true
+    }
+
+    return res.status(200)
+    .clearCookie("accessToken", options)
+    .clearCookie("refreshToken", options)
+    .json({
+        success: true,
+        message: "User logged out successfully"
+    })
 })
 
 
@@ -228,5 +252,6 @@ const logoutUser = ansyncHandler(async(req, res) =>{
 // export functions
 
 export { registerUser,
-    loginUser
+        loginUser ,
+        logoutUser
  };
