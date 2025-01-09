@@ -132,7 +132,7 @@ res.status(201).json({
 
 
 // function to login a user
-
+ 
 const loginUser = ansyncHandler(async(req, res) =>{
 
     //get details from the request body
