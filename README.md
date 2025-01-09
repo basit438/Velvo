@@ -113,7 +113,7 @@ As the project is in its early stages, contributors are welcome to join and help
 For any queries or suggestions, feel free to reach out:
 
 - **Author**: Basit Manzoor  
-- **Email**: [basitmanzoor@example.com](mailto:basitmanzoor@example.com)
+- **Email**: [basitmanzoor@example.com](mailto:basitmanzoor438@gmail.com)
 
 ---
 
