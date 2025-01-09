@@ -1,6 +1,7 @@
 import { ansyncHandler } from "../utils/asyncHandler.js";
 import {User} from "../models/user.model.js";
 import{uploadOnCloudinary} from "../utils/cloudinary.js";
+import jwt from "jsonwebtoken";
 
 
 // function to generate access and refresh token
@@ -11,6 +12,8 @@ const generateAccessAndRefreshTokens = async(UserId) => {
      const user = await User.findById(UserId);
 
      const accessToken = user.generateAccessToken();
+     console.log("Access Token Payload:", jwt.decode(accessToken));
+
      const refreshToken = user.generateRefreshToken();
      user.refreshToken = refreshToken;
      await user.save({validateBeforeSave: false});
@@ -134,10 +137,14 @@ const loginUser = ansyncHandler(async(req, res) =>{
 
     //get details from the request body
 
-    const {email , password , username} = req.body;
+    const {email , username , password} = req.body;
+
+    console.log(email, username, password);
+
+
 
     // check if email or username is provided
-    if(!(username|| email)){
+    if(!(username || email)){
         return res.status(400)
         .json({
             success: false,
@@ -235,7 +242,85 @@ const logoutUser = ansyncHandler(async(req, res) =>{
         success: true,
         message: "User logged out successfully"
     })
-})
+});
+
+// funxtion to refresh access token
+
+const refreshAccessToken = ansyncHandler(async(req, res) =>{
+
+  const incommingRefreshToken =   req.cookies.refreshToken || req.body.refreshToken
+
+  if(!incommingRefreshToken){
+    res.status(401)
+    .json({
+        success : false,
+        message : "unauthorized request",
+    })
+  }
+    
+ try {
+      const decodedToken = jwt.verify(
+           incommingRefreshToken,
+           process.env.REFRESH_TOKEN_SECRET
+       )
+   
+       const user = await User.findById(decodedToken?._id)
+   
+       if(!user){
+           res.status(401)
+           .json({
+               success : false,
+               message : "invalid refresh token"
+           })
+           
+       }
+   
+       if(incommingRefreshToken !== user?.refreshToken){
+           throw new Error(401 ,"Refresh token is expired or used");
+           
+       }
+   
+       //generate new token
+   
+       const options ={
+           httpOnly : true,
+           secure : true
+       }
+   
+       const {accessToken , newRefreshToken} = await generateAccessAndRefreshTokens(user._id)
+   
+       return res
+       .status(401)
+       .cookie("accessToken" , accessToken , options)
+       .cookie("refreshToken" , newRefreshToken, options)
+       .json({
+           success : true,
+           data : accessToken , refreshToken : newRefreshToken ,
+           message : "Access token refreshed succesfully" 
+       })
+   
+ } catch (error) {
+    throw new Error(401 ,"error refreshing your token");
+    
+    
+ }
+
+
+
+
+
+
+
+
+});
+
+
+
+
+
+
+
+
 
 
 
@@ -253,5 +338,6 @@ const logoutUser = ansyncHandler(async(req, res) =>{
 
 export { registerUser,
         loginUser ,
-        logoutUser
+        logoutUser, 
+        refreshAccessToken
  };

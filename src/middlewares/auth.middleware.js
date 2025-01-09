@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 import { User } from "../models/user.model.js";
 
 
-export const verifyJWT = asyncHandler(async (req, res, next) => {
+export const verifyJWT = ansyncHandler(async (req, res, next) => {
     try {
 
         // get token from cookie or authorization header
@@ -18,12 +18,16 @@ export const verifyJWT = asyncHandler(async (req, res, next) => {
         })
 
         // verify token
-
+ 
         const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET)
+        // console.log("Decoded Token:", decodedToken);
+
 
         
 
-        const user = await User.findById(decodedToken?._id).select("-password refreshToken");
+        const user = await User.findById(decodedToken?._id).select("-password -refreshToken");
+        // console.log("User Found:", user);
+    
 
 
         if(!user) return res.status(401).json({
