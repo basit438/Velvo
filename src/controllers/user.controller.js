@@ -315,7 +315,173 @@ const refreshAccessToken = ansyncHandler(async(req, res) =>{
 });
 
 
+// function to change user password
 
+const changeCurrentPassword = ansyncHandler(async(req, res) =>{
+
+    const {oldPassword , newPassword} = req.body;
+
+    const user = await User.findById(req.user._id)
+
+      const isPasswordCorrect = await user.isPasswordCorrect(oldPassword);
+
+      if(!isPasswordCorrect){
+          return res.status(400)
+          .json({
+              success: false,
+              message: "Incorrect old password"
+          })
+      }
+
+      user.password = newPassword;
+      await user.save({validateBeforeSave: false});
+
+      return res.status(200)
+      .json({
+          success: true,
+          message: "Password changed successfully"
+      })
+});
+
+
+// get current user
+
+const getCurrentUser = ansyncHandler(async(req, res) =>{
+    return res.status(200)
+    .json({
+        success: true,
+        data: req.user,
+        message: "User fetched successfully"
+    })
+});
+
+
+// update userAccount details
+
+const updateUserAccount = ansyncHandler(async(req, res) =>{
+
+    const { username , email} = req.body
+    if( !username || !email){
+        return res.status(400)
+        .json({
+            success: false,
+            message: "Missing required fields"
+        })
+    }
+
+    const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set: {
+                username,
+                email
+            }
+        },
+        {new: true}
+    ).select("-password");
+
+    return res.status(200)
+    .json({
+        success: true,
+        data: user,
+        message: "User account updated successfully"
+    });
+
+
+});
+
+
+//function to update avatar file
+
+const updateUserAvatar = ansyncHandler(async(req, res) =>{
+    const avatarLocalPath = req.file?.path;
+
+    if(!avatarLocalPath){
+        return res.status(400)
+        .json({
+            success: false,
+            message: "Missing required fields"
+        })
+    } 
+
+    const avatar = await uploadOnCloudinary(avatarLocalPath);
+
+    if(!avatar.url){
+        return res.status(400)
+        .json({
+            success: false,
+            message: "Something went wrong while uploading avatar"
+        })
+    }
+
+      const user = await User.findByIdAndUpdate(
+          req.user?._id,
+          {
+              $set: {
+                  avatar : avatar.url
+              }
+          },
+          {new: true}
+      ).select("-password")
+
+      return res.status(200)
+      .json({
+          success: true,
+          data: user,
+          message: "User avatar updated successfully"
+      });
+
+      
+
+
+
+});
+
+
+//function to update coverImage file
+
+
+const updateCoverImage = ansyncHandler(async(req, res) =>{
+    const coverImageLocalPath = req.file?.path;
+
+    if(!coverImageLocalPath){
+        return res.status(400)
+        .json({
+            success: false,
+            message: "Missing required fields"
+        })
+    } 
+
+    const coverImage = await uploadOnCloudinary(coverImageLocalPath);
+
+    if(!coverImage.url){
+        return res.status(400)
+        .json({
+            success: false,
+            message: "Something went wrong while uploading Cover Image"
+        })
+    }
+
+     const user = await User.findByIdAndUpdate(
+          req.user?._id,
+          {
+              $set: {
+                  coverImage : coverImage.url
+              }
+          },
+          {new: true}
+      ).select("-password")
+
+      return res.status(200)
+      .json({
+          success: true,
+          data: user,
+          message: "User Cover Image updated successfully"
+      });
+
+
+
+});
 
 
 
@@ -339,5 +505,10 @@ const refreshAccessToken = ansyncHandler(async(req, res) =>{
 export { registerUser,
         loginUser ,
         logoutUser, 
-        refreshAccessToken
+        refreshAccessToken,
+        changeCurrentPassword,
+        getCurrentUser,
+        updateUserAccount,
+        updateUserAvatar,
+        updateCoverImage
  };
