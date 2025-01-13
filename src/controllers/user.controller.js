@@ -485,9 +485,145 @@ const updateCoverImage = ansyncHandler(async(req, res) =>{
 
 
 
+// function to get channel details to show on prifile page on frontend 
+
+
+const  getUserChannelProfile = ansyncHandler(async(req, res) =>{
+
+const {username} = req.params;
+
+if(!username?.trim){
+    return res.status(400)
+    .json({
+        success: false,
+        message: "Missing username"
+    })
+}
+
+//
+       const channel = await User.aggregate([
+            {
+                $match :{
+                    username : username.toLowerCase()
+                }
+            },
+            {
+                $lookup :{
+                    from: "subscriptions",
+                    localField: "_id",
+                    foreignField : "channel",
+                    as :"subscribers"
+                }
+            },
+            {
+                $lookup :{
+                    from: "subscriptions",
+                    localField: "_id",
+                    foreignField : "subscriber",
+                    as :"subscribedTo"
+                }
+            },
+            {
+                $addFields :{
+                    subscribersCount : {$size : "$subscribers"},
+                    channelsSubscribedToCount : {$size : "$subscribedTo"},
+                    isSubscribed : {
+                        $cond : {
+                            if :{ $in : [req.user?._id , "$subscribers.subscriber"]},
+                            then : true,
+                            else : false
+                        }
+                    }
+
+                }
+            },
+            {
+                $project :{
+                    fullname : 1,
+                    username : 1,
+                    email : 1,
+                    avatar : 1,
+                    subscribersCount : 1,
+                    channelsSubscribedToCount : 1,
+                    isSubscribed : 1,
+                    coverImage : 1
+                }
+            }
+
+
+        ]);
+
+        // console.log(channel)
+
+        if(!channel?.length){
+            res.status(400)
+            .json({
+                success : false,
+                message: "channel doesn't exist"
+            })
+        }
+
+        return res.status(200).json({
+            success : true,
+            data : channel[0],
+            message : "user channel details fetched successfully"
+        })
 
 
 
+});
+
+// get user watchHistory
+
+const getWatchHistory = ansyncHandler(async(req, res) =>{
+    const user = await User.aggregate([
+        {
+            $match :{
+                _id :  new mongoose.Types.ObjectId(req.user?._id)
+            }
+        },
+        {
+            $lookup :{
+                from : "videos",
+                localField : "watchHistory",
+                foreignField : "_id",
+                as : "watchHistory",
+                pipeline :[
+                    {
+                        $lookup :{
+                            from : "users",
+                            localField : "owner",
+                            foreignField : "_id",
+                            as : "owner",
+                            pipeline :[
+                                {
+                                    $project :{
+                                        fullname : 1,
+                                        username : 1,
+                                        avatar : 1
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        $addFields : {
+                            owner : {
+                                $first : "$owner"
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    ])
+
+    return res.status(200).json({
+        success : true,
+        data : user[0]?.watchHistory,
+        message : "User watch history fetched successfully"
+    })
+})
 
 
 
@@ -510,5 +646,7 @@ export { registerUser,
         getCurrentUser,
         updateUserAccount,
         updateUserAvatar,
-        updateCoverImage
+        updateCoverImage,
+        getUserChannelProfile
+
  };
